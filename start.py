@@ -18,12 +18,8 @@ USER_AGENT = (
 )
 BASE_URL = "https://umsu.unimelb.edu.au"
 LISTING_URL = f"{BASE_URL}/buddy-up/clubs/clubs-listing/"
-
-# Each worker runs its own headless Chrome, so keep this modest (each uses ~150-300 MB RAM)
 MAX_WORKERS = 4
 
-# Element(s) that appear once the club's description has rendered.
-# Adjust if it turns out to be different on the club pages.
 CONTENT_SELECTOR = ".mslwidget"
 WAIT_SECONDS = 8  # max wait for the description to render
 
@@ -33,7 +29,7 @@ KEYWORDS = [
 ]
 KEYWORD_PATTERN = re.compile(r"\b(" + "|".join(KEYWORDS) + r")\b", re.IGNORECASE)
 
-DRIVER_PATH = ChromeDriverManager().install()  # download once, share across threads
+DRIVER_PATH = ChromeDriverManager().install() 
 
 
 def make_driver():
@@ -41,8 +37,6 @@ def make_driver():
     options.add_argument("--headless")
     options.add_argument("--disable-gpu")
     options.add_argument(f"user-agent={USER_AGENT}")
-    # Return from driver.get() once the HTML is parsed, without waiting for
-    # fonts/trackers; WebDriverWait below still waits for the description itself
     options.page_load_strategy = "eager"
     # Skip images to speed up page loads
     options.add_experimental_option(
@@ -65,7 +59,7 @@ def get_driver():
     return thread_local.driver
 
 
-# ---------- 1. Get the club list ----------
+# Get the club list ----------
 listing_driver = make_driver()
 try:
     listing_driver.get(LISTING_URL)
@@ -89,12 +83,11 @@ for club in soup.select("li.show-item"):
 print(f"Found {len(club_data)} clubs. Scanning each page for commerce keywords...\n")
 
 
-# ---------- 2. Render each club page, scan its text, collect links ----------
+# Render each club page, scan its text, collect links ----------
 def get_club_text(sub_soup):
     """Text from the club's own content only, not the site-wide header/footer/nav."""
     for tag in sub_soup.select("header, footer, nav, script, style, noscript"):
         tag.decompose()
-    # A page can have several .mslwidget blocks, so combine all of them
     widgets = sub_soup.select(CONTENT_SELECTOR)
     if widgets:
         return " ".join(w.get_text(" ", strip=True) for w in widgets)
@@ -105,8 +98,6 @@ def scrape_club(club):
     try:
         driver = get_driver()
         driver.get(club["url"])
-
-        # Wait until the content container exists AND has some text in it
         try:
             WebDriverWait(driver, WAIT_SECONDS).until(
                 lambda d: any(
@@ -157,7 +148,7 @@ finally:
         d.quit()
 
 
-# ---------- 3. Print only the commerce clubs ----------
+# Print only the commerce clubs ----------
 commerce_clubs.sort(key=lambda c: c[0]["name"].lower())
 print()
 for club, links, matched in commerce_clubs:
